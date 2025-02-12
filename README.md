@@ -1,1 +1,0 @@
-# azure-function-app-template

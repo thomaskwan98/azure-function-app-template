@@ -1,0 +1,140 @@
+'use strict';
+const logger = rootRequire('utility/logger');
+const commonService = rootRequire('service/common-service.js');
+const accountService = rootRequire('service/account-service.js');
+const Q = require("q");
+
+module.exports = {
+	post: function(req, res) {
+		logger.info("Create or Update Newsletter Subscription:" + req.body.Email);
+
+		const context = { req, res };
+
+		const comService = new commonService(context);
+		comService.checkPAExistanceAndNewsSubscription(req.body.Email, req.body.ENewsInstance)
+		.then((response) => {
+			var customerExist = response.CustomerExist;
+			var subscriptionStatus = response.SubscriptionStatus;
+			
+			var payload = {};
+			if (customerExist == true && subscriptionStatus == true){
+				payload.Success = false;
+				payload.Email = req.body.Email ? req.body.Email:"";
+				payload.ENewsInstance = req.body.ENewsInstance ? req.body.ENewsInstance:"";
+				payload.MasterCustomerID = response.MasterCustomerID;
+				payload.Remarks = "Customer already subscribed to eNews " + (req.body.ENewsInstance ? req.body.ENewsInstance:"");
+				res.status(200).send(payload);
+			} else if (customerExist == true && subscriptionStatus == false){
+				req.body["MasterCustomerID"] = response.MasterCustomerID;
+				var personalAccount = outboundRequestTransformation(req);
+				const accService = new accountService(context);
+				accService
+					.updatePersonalAccountMaster(personalAccount)
+					.then((response) => {
+						if (response.Success) {
+							payload.Success = true;
+							payload.Email = req.body.Email ? req.body.Email:"";
+							payload.ENewsInstance = req.body.ENewsInstance ? req.body.ENewsInstance:"";
+							payload.MasterCustomerID = personalAccount.MasterCustomerID;
+							payload.Remarks = "Customer newsletter subscription updated successfully";
+							res.status(200).send(payload);
+						} else {
+							res.status(400).send({
+								errorMessage : "Fail to Update Newsletter Subscription",
+								developerErrorMessage : "[APIGW-ERROR] Fail to Update Newsletter Subscription"
+								});
+						}
+					})
+					.fail((error) => {
+						res.status(400).send({
+							errorMessage : "Fail to Update Newsletter Subscription",
+							developerErrorMessage : error.developerErrorMessage
+						});
+					})
+		
+			} else {
+				var personalAccount = outboundRequestTransformation(req);
+				const accService = new accountService(context);
+				accService
+					.createPersonalAccountMaster(personalAccount)
+					.then((response) => {
+						if (response.Success) {
+							payload.Success = true;
+							payload.Email = req.body.Email ? req.body.Email:"";
+							payload.ENewsInstance = req.body.ENewsInstance ? req.body.ENewsInstance:"";
+							payload.MasterCustomerID = response.MasterCustomerID;
+							payload.Remarks = "Customer newsletter subscription created successfully";
+							res.status(200).send(payload);
+						} else {
+							res.status(400).send({
+								errorMessage : "Fail to Create Newsletter Subscription",
+								developerErrorMessage : "[APIGW-ERROR] Fail to Create Newsletter Subscription"
+								});						
+						}
+					})
+					.fail((error) => {
+						res.status(400).send({
+							errorMessage : "Fail to Create Newsletter Subscription",
+							developerErrorMessage : error.developerErrorMessage
+						});
+					})
+		
+			}
+		})
+		.fail((error) => {
+			res.status(400).send(error);
+		});
+
+	}
+
+}
+
+function outboundRequestTransformation(req){
+	var payload = {};
+	payload.MasterCustomerID = req.body.MasterCustomerID ? req.body.MasterCustomerID:"";
+	payload.Email = req.body.Email ? req.body.Email:"";
+	payload.FirstName = req.body.FirstName ? req.body.FirstName:"";
+	payload.FirstNameChi = req.body.FirstNameChi ? req.body.FirstNameChi:"";
+	payload.LastName = req.body.LastName ? req.body.LastName:"";
+	payload.LastNameChi = req.body.LastNameChi ? req.body.LastNameChi:"";
+	payload.Salutation = req.body.Salutation ? req.body.Salutation:"";
+	payload.Address1 = req.body.Address1 ? req.body.Address1:"";
+	payload.Address2 = req.body.Address2 ? req.body.Address2:"";
+	payload.Address3 = req.body.Address3 ? req.body.Address3:"";
+	payload.AddressCountry = req.body.AddressCountry ? req.body.AddressCountry:"";
+	payload.PreferredLanguage = req.body.PreferredLanguage ? req.body.PreferredLanguage:"";
+	payload.CustomerInterestSelected = req.body.CustomerInterestSelected ? req.body.CustomerInterestSelected:"";
+	payload.CustomerSource = req.body.CustomerSource ? req.body.CustomerSource:"";
+
+	if(req.body.ENewsInstance === "WK_eNews"){
+		payload.WK_eNews = true;
+
+//Modified by Anthony
+if (!(req.body.MasterCustomerID)) { payload.MPlus_eNews = false; }
+		
+		payload.EmailOptinDate1 = req.body.EmailOptInDate ? req.body.EmailOptInDate:"";
+	}else if(req.body.ENewsInstance === "MPlus_eNews"){
+
+// Modified by Anthony
+if (!(req.body.MasterCustomerID)) { payload.WK_eNews = false; }
+
+
+		payload.MPlus_eNews = true;
+		payload.EmailOptinDate2 = req.body.EmailOptInDate ? req.body.EmailOptInDate:"";
+	}else{
+		payload.WK_eNews = false;
+		payload.MPlus_eNews = false;
+
+	}
+
+	if(req.body.ENewsOptInChannel){
+		payload[req.body.ENewsOptInChannel] = req.body.OptInChannel ? req.body.OptInChannel:"";
+	}
+	if(req.body.ENewsEmailOptInDate){
+		payload[req.body.ENewsEmailOptInDate] = req.body.EmailOptInDate ? req.body.EmailOptInDate:"";
+	}
+
+	payload.Status = "Active";
+	
+	return payload;
+}
