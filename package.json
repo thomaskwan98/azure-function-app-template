@@ -1,0 +1,30 @@
+{
+  "name": "crm-customized-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node app.js",
+    "f-start": "node node_modules/forever/bin/forever start app.js",
+    "f-stop": "node node_modules/forever/bin/forever stop app.js",
+    "f-list": "node node_modules/forever/bin/forever list",
+    "start-dv": "NODE_ENV=DV npm run f-start",
+    "start-sit": "NODE_ENV=SIT npm run f-start",
+    "start-uat": "NODE_ENV=UAT npm run f-start",
+    "start-dv-window": "set NODE_ENV=DV&& npm run f-start"
+  },
+  "dependencies": {
+    "applicationinsights": "^2.9.0",
+    "body-parser": "^1.15.2",
+    "cron": "^1.2.1",
+    "express": "~4.13.1",
+    "express-ipfilter": "0.2.1",
+    "forever": "^0.15.3",
+    "q": "^1.4.1",
+    "request": "^2.79.0",
+    "winston": "^2.3.0",
+    "winston-daily-rotate-file": "^1.4.2"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1"
+  }
+}
